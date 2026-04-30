@@ -1,5 +1,6 @@
 import deepchem as dc
 import pandas as pd
+from torch_geometric.data import Data
 
 def coulomb_matrix(smiles_molecule):
     molecule = Chem.MolFromSmiles(smiles_molecule)
@@ -34,5 +35,13 @@ def load_deepchem(csv_path):
     # create a deepchem dataset
     dataset = loader.create_dataset(csv_path)
 
-    print(dataset.X.shape)
-    print(dataset.y.shape)
+    return dataset
+
+def convert_graph_data(dataset):
+    graph_data = []
+    # create geometric data object to give pyg gnn
+    for sample in dataset:
+        data = Data(x=sample.X, edge_index=sample.edge_index, edge_attr=sample.edge_features)
+        graph_data.append(data)
+    return graph_data
+
