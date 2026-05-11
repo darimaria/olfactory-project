@@ -3,5 +3,12 @@ name = "olfactory-project"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
-dependencies = []
+requires-python = ">=3.12"
+dependencies = [
+    "deepchem",
+    "rdkit",
+    "pandas",
+    "torch",
+    "torch-geometric",
+    "tqdm>=4.67.3",
+]

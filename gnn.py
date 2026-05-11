@@ -1,5 +1,6 @@
 import torch
 from torch_geometric.nn import GCNConv, global_mean_pool
+from tqdm import tqdm
 
 class GraphNeuralNetwork(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim):
@@ -30,13 +31,15 @@ class Classifier(torch.nn.Module):
 def train_model(model, train_loader, optimizer, loss_fn):
     model.train()
     total_loss = 0
-    for data in train_loader:
+    progress = tqdm(train_loader, desc="Training", unit="batch")
+    for data in progress:
         optimizer.zero_grad()
         out = model(data)
         loss = loss_fn(out, data.y)
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
+        progress.set_postfix(loss=f"{loss.item():.4f}")
     return total_loss / len(train_loader)
 
 def evaluate_model(model, val_loader, loss_fn):
