@@ -16,10 +16,10 @@ class GraphNeuralNetwork(torch.nn.Module):
         return x
 
 class Classifier(torch.nn.Module):
-    def __init__(self, input_dim, hidden_dim, output_dim):
+    def __init__(self, input_dim, hidden_dim, output_dim, num_classes):
         super(Classifier, self).__init__()
         self.gnn = GraphNeuralNetwork(input_dim, hidden_dim, output_dim)
-        self.classifier = torch.nn.Linear(output_dim, output_dim)
+        self.classifier = torch.nn.Linear(output_dim, num_classes)
 
     def forward(self, data):
         x = self.gnn(data)

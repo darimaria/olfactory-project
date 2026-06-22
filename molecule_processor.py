@@ -4,50 +4,28 @@ import torch
 from torch_geometric.data import Data
 from tqdm import tqdm
 
-def coulomb_matrix(smiles_molecule):
-    molecule = Chem.MolFromSmiles(smiles_molecule)
-    featurizer = dc.feat.CoulombMatrix(max_atoms=25)
-    coulomb_matrix = featurizer.featurize([molecule])
-    return coulomb_matrix
+_FEATURIZER = dc.feat.MolGraphConvFeaturizer(use_edges=True)
 
-def vectorize_descriptors(df):
-    # first get the descriptor names
-    descriptor_names = df.columns[2:-1]
-    rows, cols = df.shape
-    new_df = pd.DataFrame([], columns=['molecule', 'coulomb_matrix', 'description_vector'])
-    for i in range(rows):
-        molecule = df.iloc[i]['nonStereoSMILES']
-        cm = df.iloc[i]['coulomb_matrix']
-        description_vector = [int(df.iloc[i][descriptor]) for descriptor in descriptor_names]
-        new_df.loc[i] = {'molecule': molecule, 'coulomb_matrix': cm, 'description_vector': description_vector}
+def smiles_to_graph(smiles, labels=None):
+    graph = _FEATURIZER.featurize([smiles])[0]
+    data = Data(
+        x=torch.tensor(graph.node_features, dtype=torch.float),
+        edge_index=torch.tensor(graph.edge_index, dtype=torch.long),
+        edge_attr=torch.tensor(graph.edge_features, dtype=torch.float),
+    )
+    if labels is not None:
+        data.y = torch.tensor(labels, dtype=torch.float).unsqueeze(0)
+    data.batch = torch.zeros(data.x.shape[0], dtype=torch.long)
+    return data
 
-    return new_df, descriptor_names
-
-def load_deepchem(csv_path):
-    # put all of the labels of the scent columns into a list
+def load_dataset(csv_path):
     df = pd.read_csv(csv_path)
     scent_labels = df.columns[2:].tolist()
-    
-    # initialize a featurizer that will convert the smiles strings into graph data
-    featurizer = dc.feat.MolGraphConvFeaturizer(use_edges=True)
-
-    # load from csv
-    loader = dc.data.CSVLoader(tasks=scent_labels, feature_field="nonStereoSMILES", featurizer=featurizer)
-
-    # create a deepchem dataset
-    dataset = loader.create_dataset(csv_path)
-
-    return dataset
-
-def convert_graph_data(dataset):
-    graph_data = []
-    for X, y, w, ids in tqdm(dataset.itersamples(), total=len(dataset), desc="Converting molecules", unit="mol"):
-        data = Data(
-            x=torch.tensor(X.node_features, dtype=torch.float),
-            edge_index=torch.tensor(X.edge_index, dtype=torch.long),
-            edge_attr=torch.tensor(X.edge_features, dtype=torch.float),
-            y=torch.tensor(y, dtype=torch.float)
-        )
-        graph_data.append(data)
-    return graph_data
-
+    dataset = []
+    for _, row in tqdm(df.iterrows(), total=len(df), desc="Featurizing molecules", unit="mol"):
+        try:
+            data = smiles_to_graph(row["nonStereoSMILES"], row[scent_labels].values)
+            dataset.append(data)
+        except Exception:
+            pass
+    return dataset, scent_labels
